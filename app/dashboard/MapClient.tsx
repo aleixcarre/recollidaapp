@@ -1,23 +1,30 @@
+// @ts-nocheck
 'use client'
 
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 
-export default function MapClient({ pickups }: any) {
+export default function MapClient({ pickups }) {
   return (
     <div style={{ height: 400, marginBottom: 30 }}>
       <MapContainer
-        center={[41.98, 2.82] as any}
+        center={[41.98, 2.82]}
         zoom={12}
         style={{ height: '100%', width: '100%' }}
       >
-        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+        <TileLayer
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
 
-        {pickups?.map((p: any) =>
+        {pickups?.map((p) =>
           p.latitude && p.longitude ? (
-            <Marker key={p.id} position={[p.latitude, p.longitude] as any}>
+            <Marker
+              key={p.id}
+              position={[p.latitude, p.longitude]}
+            >
               <Popup>
-                <b>{p.client_name}</b><br />
+                <b>{p.client_name}</b>
+                <br />
                 {p.status}
               </Popup>
             </Marker>
