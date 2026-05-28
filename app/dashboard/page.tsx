@@ -2,9 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
-import 'leaflet/dist/leaflet.css'
+import MapClient from './MapClient'
 
 export default function Dashboard() {
   const [pickups, setPickups] = useState<any[]>([])
@@ -40,28 +38,7 @@ export default function Dashboard() {
       <h1>🚛 DASHBOARD OPERARIS</h1>
 
       {/* 🟢 MAPA */}
-      <div style={{ height: 400, marginBottom: 30 }}>
-        <MapContainer
-          center={[41.98, 2.82]}
-          zoom={12}
-          style={{ height: '100%', width: '100%' }}
-        >
-          <TileLayer
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
-
-          {pickups.map((p) =>
-            p.latitude && p.longitude ? (
-              <Marker key={p.id} position={[p.latitude, p.longitude]}>
-                <Popup>
-                  <b>{p.client_name}</b><br />
-                  {p.status}
-                </Popup>
-              </Marker>
-            ) : null
-          )}
-        </MapContainer>
-      </div>
+      <MapClient pickups={pickups} />
 
       {/* 🟠 PENDENTS */}
       <h2>PENDENTS</h2>
