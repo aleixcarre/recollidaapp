@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import MapClient from './MapClient'
+
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
+import 'leaflet/dist/leaflet.css'
 
 export default function Dashboard() {
   const [pickups, setPickups] = useState<any[]>([])
@@ -17,11 +19,7 @@ export default function Dashboard() {
       .select('*')
       .order('id', { ascending: false })
 
-    if (!error) {
-      setPickups(data || [])
-    } else {
-      console.log(error)
-    }
+    if (!error) setPickups(data || [])
   }
 
   const markAsDone = async (id: number) => {
@@ -30,35 +28,47 @@ export default function Dashboard() {
       .update({ status: 'done' })
       .eq('id', id)
 
-    if (!error) {
-      fetchPickups()
-    }
+    if (!error) fetchPickups()
   }
 
-  const pending = pickups.filter((p) => p.status === 'pending')
-  const done = pickups.filter((p) => p.status === 'done')
+  const pending = pickups.filter(p => p.status === 'pending')
+  const done = pickups.filter(p => p.status === 'done')
 
   return (
     <div style={{ padding: 30 }}>
 
       <h1>🚛 DASHBOARD OPERARIS</h1>
 
-      {/* 🗺️ MAPA */}
-      <MapClient pickups={pickups} />
+      {/* 🟢 MAPA */}
+      <div style={{ height: 400, marginBottom: 30 }}>
+        <MapContainer
+          center={[41.98, 2.82]}
+          zoom={12}
+          style={{ height: '100%', width: '100%' }}
+        >
+          <TileLayer
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+
+          {pickups.map((p) =>
+            p.latitude && p.longitude ? (
+              <Marker key={p.id} position={[p.latitude, p.longitude]}>
+                <Popup>
+                  <b>{p.client_name}</b><br />
+                  {p.status}
+                </Popup>
+              </Marker>
+            ) : null
+          )}
+        </MapContainer>
+      </div>
 
       {/* 🟠 PENDENTS */}
       <h2>PENDENTS</h2>
       {pending.length === 0 && <p>No hi ha pendents</p>}
 
       {pending.map((p) => (
-        <div
-          key={p.id}
-          style={{
-            border: '1px solid orange',
-            padding: 10,
-            marginBottom: 10
-          }}
-        >
+        <div key={p.id} style={{ border: '1px solid orange', padding: 10, marginBottom: 10 }}>
           <p><b>Client:</b> {p.client_name}</p>
           <p><b>Lat:</b> {p.latitude}</p>
           <p><b>Lng:</b> {p.longitude}</p>
@@ -75,14 +85,7 @@ export default function Dashboard() {
       {done.length === 0 && <p>No hi ha completades</p>}
 
       {done.map((p) => (
-        <div
-          key={p.id}
-          style={{
-            border: '1px solid green',
-            padding: 10,
-            marginBottom: 10
-          }}
-        >
+        <div key={p.id} style={{ border: '1px solid green', padding: 10, marginBottom: 10 }}>
           <p><b>Client:</b> {p.client_name}</p>
           <p><b>Lat:</b> {p.latitude}</p>
           <p><b>Lng:</b> {p.longitude}</p>
