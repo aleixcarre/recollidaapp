@@ -1,10 +1,32 @@
 // @ts-nocheck
 'use client'
 
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
-import 'leaflet/dist/leaflet.css'
+import { useEffect, useState } from 'react'
 
 export default function MapClient({ pickups }) {
+  const [Map, setMap] = useState(null)
+
+  useEffect(() => {
+    const loadMap = async () => {
+      const L = await import('react-leaflet')
+
+      setMap({
+        MapContainer: L.MapContainer,
+        TileLayer: L.TileLayer,
+        Marker: L.Marker,
+        Popup: L.Popup,
+      })
+    }
+
+    loadMap()
+  }, [])
+
+  if (!Map) {
+    return <p>Carregant mapa...</p>
+  }
+
+  const { MapContainer, TileLayer, Marker, Popup } = Map
+
   return (
     <div style={{ height: 400, marginBottom: 30 }}>
       <MapContainer
