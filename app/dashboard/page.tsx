@@ -96,8 +96,10 @@ export default function Dashboard() {
 
       <h1>🚛 DASHBOARD OPERARIS</h1>
 
+      {/* 🗺️ MAPA */}
       <MapClient pickups={pickups} />
 
+      {/* 🟠 PENDENTS */}
       <h2>PENDENTS</h2>
 
       {pending.length === 0 && <p>No hi ha pendents</p>}
@@ -121,6 +123,7 @@ export default function Dashboard() {
         </div>
       ))}
 
+      {/* 🟢 COMPLETADES */}
       <h2 style={{ marginTop: 30 }}>COMPLETADES</h2>
 
       {done.length === 0 && <p>No hi ha completades</p>}
