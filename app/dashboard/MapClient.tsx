@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 
-// 🧠 ordenació per proximitat
+// 🧠 Ordenació per proximitat (Nearest Neighbor)
 function sortByNearest(points: any[]) {
   if (!points.length) return []
 
@@ -36,10 +36,11 @@ function sortByNearest(points: any[]) {
   return result
 }
 
-export default function MapClient({ pickups }) {
+export default function MapClient({ pickups }: { pickups: any[] }) {
   const [Map, setMap] = useState<any>(null)
   const [route, setRoute] = useState<any[]>([])
 
+  // 🗺️ carregar leaflet només client-side
   useEffect(() => {
     const loadMap = async () => {
       const L = await import('react-leaflet')
@@ -57,18 +58,22 @@ export default function MapClient({ pickups }) {
     loadMap()
   }, [])
 
-  // 🧠 ordenar punts
-  const sorted = sortByNearest(
-    (pickups || []).filter(p => p.latitude && p.longitude)
+  const validPoints = (pickups || []).filter(
+    (p) => p.latitude && p.longitude
   )
 
-  // 🧠 obtenir ruta real per carreteres
+  const sorted = sortByNearest(validPoints)
+
+  // 🛣️ ruta real per carreteres (OpenRouteService)
   useEffect(() => {
     const getRoute = async () => {
       if (sorted.length < 2) return
 
       try {
-        const coords = sorted.map(p => [p.longitude, p.latitude])
+        const coords = sorted.map((p) => [
+          p.longitude,
+          p.latitude,
+        ])
 
         const res = await fetch(
           'https://api.openrouteservice.org/v2/directions/driving-car/geojson',
@@ -86,10 +91,9 @@ export default function MapClient({ pickups }) {
 
         const data = await res.json()
 
-        const line = data.features[0].geometry.coordinates.map((c: any) => [
-          c[1],
-          c[0],
-        ])
+        const line = data.features[0].geometry.coordinates.map(
+          (c: any) => [c[1], c[0]]
+        )
 
         setRoute(line)
       } catch (err) {
@@ -102,7 +106,14 @@ export default function MapClient({ pickups }) {
 
   if (!Map) return <p>Carregant mapa...</p>
 
-  const { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } = Map
+  const {
+    MapContainer,
+    TileLayer,
+    Marker,
+    Popup,
+    Polyline,
+    useMap,
+  } = Map
 
   function FixMap() {
     const map = useMap()
