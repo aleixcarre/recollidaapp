@@ -15,7 +15,10 @@ function sortByNearest(points: any[]) {
   const remaining = [...points]
   const result: any[] = []
 
-  result.push(remaining.shift())
+  const first = remaining.shift()
+  if (!first) return []
+
+  result.push(first)
 
   while (remaining.length > 0) {
     const last = result[result.length - 1]
@@ -46,7 +49,7 @@ export default function MapClient({ pickups }: { pickups: any[] }) {
   const [Map, setMap] = useState<any>(null)
   const [route, setRoute] = useState<any[]>([])
 
-  // 🗺️ Leaflet només client-side
+  // 🗺️ Leaflet client-side
   useEffect(() => {
     const loadMap = async () => {
       const L = await import('react-leaflet')
@@ -75,7 +78,7 @@ export default function MapClient({ pickups }: { pickups: any[] }) {
   // 🧭 ruta completa (DEPOT + punts)
   const routePoints = [DEPOT, ...sorted]
 
-  // 🛣️ ruta real per carreteres (OpenRouteService)
+  // 🛣️ ruta real (CORREGIT: depèn de routePoints)
   useEffect(() => {
     const getRoute = async () => {
       if (routePoints.length < 2) return
@@ -102,6 +105,15 @@ export default function MapClient({ pickups }: { pickups: any[] }) {
 
         const data = await res.json()
 
+        // 🧪 DEBUG IMPORTANT (si falla ho veuràs)
+        console.log('ORS RESPONSE:', data)
+
+        if (!data.features || !data.features.length) {
+          console.log('No route returned')
+          setRoute([])
+          return
+        }
+
         const line = data.features[0].geometry.coordinates.map(
           (c: any) => [c[1], c[0]]
         )
@@ -113,7 +125,7 @@ export default function MapClient({ pickups }: { pickups: any[] }) {
     }
 
     getRoute()
-  }, [pickups])
+  }, [routePoints]) // ✅ FIX IMPORTANT
 
   if (!Map) return <p>Carregant mapa...</p>
 
