@@ -2,6 +2,12 @@
 
 import { useEffect, useState } from 'react'
 
+// 🏭 Punt base (MAGATZEM)
+const DEPOT = {
+  latitude: 42.1172952,
+  longitude: 2.772177,
+}
+
 // 🧠 Ordenació per proximitat (Nearest Neighbor)
 function sortByNearest(points: any[]) {
   if (!points.length) return []
@@ -40,7 +46,7 @@ export default function MapClient({ pickups }: { pickups: any[] }) {
   const [Map, setMap] = useState<any>(null)
   const [route, setRoute] = useState<any[]>([])
 
-  // 🗺️ carregar leaflet només client-side
+  // 🗺️ Leaflet només client-side
   useEffect(() => {
     const loadMap = async () => {
       const L = await import('react-leaflet')
@@ -58,19 +64,24 @@ export default function MapClient({ pickups }: { pickups: any[] }) {
     loadMap()
   }, [])
 
+  // 📍 punts vàlids
   const validPoints = (pickups || []).filter(
     (p) => p.latitude && p.longitude
   )
 
+  // 🧠 ordre optimitzat
   const sorted = sortByNearest(validPoints)
+
+  // 🧭 ruta completa (DEPOT + punts)
+  const routePoints = [DEPOT, ...sorted]
 
   // 🛣️ ruta real per carreteres (OpenRouteService)
   useEffect(() => {
     const getRoute = async () => {
-      if (sorted.length < 2) return
+      if (routePoints.length < 2) return
 
       try {
-        const coords = sorted.map((p) => [
+        const coords = routePoints.map((p) => [
           p.longitude,
           p.latitude,
         ])
@@ -131,9 +142,9 @@ export default function MapClient({ pickups }: { pickups: any[] }) {
     <div style={{ height: '500px', width: '100%', marginBottom: 30 }}>
       <MapContainer
         center={
-          sorted[0]
-            ? [sorted[0].latitude, sorted[0].longitude]
-            : [41.98, 2.82]
+          routePoints[0]
+            ? [routePoints[0].latitude, routePoints[0].longitude]
+            : [42.1172952, 2.772177]
         }
         zoom={12}
         style={{ height: '100%', width: '100%' }}
@@ -142,7 +153,12 @@ export default function MapClient({ pickups }: { pickups: any[] }) {
 
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
 
-        {/* 📍 punts */}
+        {/* 🏭 magatzem */}
+        <Marker position={[DEPOT.latitude, DEPOT.longitude]}>
+          <Popup>🏭 Magatzem</Popup>
+        </Marker>
+
+        {/* 📍 punts clients */}
         {sorted.map((p) => (
           <Marker key={p.id} position={[p.latitude, p.longitude]}>
             <Popup>
