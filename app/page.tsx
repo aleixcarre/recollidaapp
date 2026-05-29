@@ -5,8 +5,14 @@ import { supabase } from '../lib/supabase'
 
 export default function Home() {
   const [loading, setLoading] = useState(false)
+  const [clientName, setClientName] = useState('')
 
   const sendPickup = async () => {
+    if (!clientName) {
+      alert('Introdueix el nom de l’empresa')
+      return
+    }
+
     setLoading(true)
 
     navigator.geolocation.getCurrentPosition(
@@ -16,7 +22,7 @@ export default function Home() {
 
         const { error } = await supabase.from('pickups').insert([
           {
-            client_name: 'Client MVP',
+            client_name: clientName,   // 👈 ARA ÉS DINÀMIC
             status: 'pending',
             latitude,
             longitude
@@ -28,6 +34,7 @@ export default function Home() {
           alert('Error enviant')
         } else {
           alert('Recollida enviada ✔')
+          setClientName('')
         }
 
         setLoading(false)
@@ -46,15 +53,31 @@ export default function Home() {
       style={{
         height: '100vh',
         display: 'flex',
+        flexDirection: 'column',
         justifyContent: 'center',
-        alignItems: 'center'
+        alignItems: 'center',
+        gap: 15
       }}
     >
+      <input
+        type="text"
+        placeholder="Nom de l’empresa"
+        value={clientName}
+        onChange={(e) => setClientName(e.target.value)}
+        style={{
+          padding: 15,
+          fontSize: 18,
+          borderRadius: 10,
+          border: '1px solid gray',
+          width: 250
+        }}
+      />
+
       <button
         onClick={sendPickup}
         style={{
-          padding: 40,
-          fontSize: 28,
+          padding: 30,
+          fontSize: 24,
           background: 'green',
           color: 'white',
           borderRadius: 20,
