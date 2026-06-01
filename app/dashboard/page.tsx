@@ -8,6 +8,41 @@ const MapClient = dynamic(() => import('./MapClient'), {
   ssr: false,
 })
 
+// 🏭 DEPOT (Punt de partida i retorn de la ruta per defecte)
+const DEPOT = {
+  latitude: 42.1172952,
+  longitude: 2.772177,
+}
+
+// 📏 Càlcul de distància simple per ordenar els punts abans d'exportar-los
+function distance(a: any, b: any) {
+  return Math.hypot(a.latitude - b.latitude, a.longitude - b.longitude)
+}
+
+function sortByNearest(points: any[]) {
+  if (!points?.length) return []
+  const remaining = [...points]
+  const result: any[] = []
+  let currentPoint = DEPOT
+
+  while (remaining.length) {
+    let nearestIndex = 0
+    let nearestDistance = Infinity
+    for (let i = 0; i < remaining.length; i++) {
+      const d = distance(remaining[i], currentPoint)
+      if (d < nearestDistance) {
+        nearestDistance = d
+        nearestIndex = i
+      }
+    }
+    const nextPoint = remaining[nearestIndex]
+    result.push(nextPoint)
+    currentPoint = nextPoint
+    remaining.splice(nearestIndex, 1)
+  }
+  return result
+}
+
 export default function Dashboard() {
   const [pickups, setPickups] = useState<any[]>([])
   const [authorized, setAuthorized] = useState(false)
@@ -34,14 +69,51 @@ export default function Dashboard() {
       .update({ status: 'done' })
       .eq('id', id)
 
-    // Al fer fetch de nou, s'actualitzarà la llista de Supabase.
-    // Com que el mapa i el dashboard només mostren el que respon l'estat,
-    // el punt desapareixerà de la pantalla i del mapa a l'acte.
     if (!error) fetchPickups()
   }
 
-  // Mantenim només el filtre de pendents (estat 'pending')
+  // Filtrem i ordenem per proximitat abans de renderitzar o exportar
   const pending = pickups.filter((p) => p.status === 'pending')
+  const sortedPending = sortByNearest(pending)
+
+  // 💾 FUNCIÓ 1: Generar i descarregar fitxer GPX per a GPS tradicionals
+  const downloadGPX = () => {
+    if (sortedPending.length === 0) return alert('No hi ha rutes per exportar')
+
+    let gpxContent = `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="RecollidaApp" xmlns="http://www.topografix.com/GPX/1/1">
+  <rte>
+    <name>Ruta Optimitzada</name>
+    <rtept lat="${DEPOT.latitude}" lon="${DEPOT.longitude}"><name>Magatzem Central</name></rtept>\n`
+
+    sortedPending.forEach((p, idx) => {
+      gpxContent += `    <rtept lat="${p.latitude}" lon="${p.longitude}"><name>Nº ${idx + 1} - ${p.client_name}</name></rtept>\n`
+    })
+
+    gpxContent += `  </rte>
+</gpx>`
+
+    const blob = new Blob([gpxContent], { type: 'application/gpx+xml' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `ruta_recollida_${new Date().toISOString().split('T')[0]}.gpx`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
+  // 📱 FUNCIÓ 2: Obrir enllaç multi-punt a l'app de Google Maps per al mòbil
+  const openInGoogleMaps = () => {
+    if (sortedPending.length === 0) return alert('No hi ha punts per obrir')
+
+    const origin = `${DEPOT.latitude},${DEPOT.longitude}`
+    const destination = `${DEPOT.latitude},${DEPOT.longitude}`
+    const waypoints = sortedPending.map(p => `${p.latitude},${p.longitude}`).join('|')
+    
+    // URL universal de Google Maps per a navegació amb punts de pas (Waypoints)
+    const url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&waypoints=${encodeURIComponent(waypoints)}&travelmode=driving`
+    window.open(url, '_blank')
+  }
 
   const login = () => {
     if (password === process.env.NEXT_PUBLIC_DASHBOARD_PASSWORD) {
@@ -100,24 +172,56 @@ export default function Dashboard() {
 
       <h1 style={{ marginBottom: 20 }}>🚛 DASHBOARD OPERARIS</h1>
 
-      {/* 🗺️ MAPA (Rep pickups; el mapa ja està programat per ocultar els 'done') */}
+      {/* 🗺️ MAPA */}
       <div style={{ borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', marginBottom: 30 }}>
         <MapClient pickups={pickups} />
       </div>
 
+      {/* 📥 ACCIONS DE DESCÀRREGA I GPS */}
+      {sortedPending.length > 0 && (
+        <div style={{ 
+          display: 'flex', 
+          gap: '15px', 
+          marginBottom: '30px', 
+          backgroundColor: '#f1f5f9', 
+          padding: '15px', 
+          borderRadius: '10px' 
+        }}>
+          <button 
+            onClick={openInGoogleMaps}
+            style={{
+              flex: 1, padding: '14px', fontSize: '15px', backgroundColor: '#4285F4', 
+              color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold'
+            }}
+          >
+            📱 Obrir ruta al mòbil (Google Maps)
+          </button>
+          
+          <button 
+            onClick={downloadGPX}
+            style={{
+              flex: 1, padding: '14px', fontSize: '15px', backgroundColor: '#0f172a', 
+              color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold'
+            }}
+          >
+            💾 Descarregar fitxer .GPX (GPS)
+          </button>
+        </div>
+      )}
+
       {/* 🟠 RUTES I SERVEIS PENDENTS */}
       <h2 style={{ color: '#e67e22', borderBottom: '2px solid #f39c12', paddingBottom: 10 }}>
-        📍 PROXIMES RECOLLIDES PENDENTS
+        📍 PRÒXIMES RECOLLIDES PENDENTS
       </h2>
 
-      {pending.length === 0 && (
+      {sortedPending.length === 0 && (
         <p style={{ textAlign: 'center', color: 'gray', padding: '20px', fontSize: '18px' }}>
           🎉 Feina feta! No queden recollides pendents per avui.
         </p>
       )}
 
       <div style={{ display: 'grid', gap: '15px', marginTop: '20px' }}>
-        {pending.map((p) => (
+        {sortedPending.map((p, idx) => (
           <div
             key={p.id}
             style={{
@@ -134,7 +238,7 @@ export default function Dashboard() {
             }}
           >
             <div>
-              <p style={{ margin: '0 0 5px 0', fontSize: '18px' }}><b>Client:</b> {p.client_name}</p>
+              <p style={{ margin: '0 0 5px 0', fontSize: '18px' }}><b>Nº {idx + 1}:</b> {p.client_name}</p>
               <p style={{ margin: '0', fontSize: '14px', color: '#666' }}>
                 🗺️ Coord: {p.latitude.toFixed(5)}, {p.longitude.toFixed(5)}
               </p>
