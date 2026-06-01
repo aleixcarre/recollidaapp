@@ -2,7 +2,14 @@ import { NextResponse } from 'next/server'
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json()
+    const { coordinates } = await req.json()
+
+    if (!coordinates || coordinates.length < 2) {
+      return NextResponse.json(
+        { error: 'Not enough coordinates' },
+        { status: 400 }
+      )
+    }
 
     const response = await fetch(
       'https://api.openrouteservice.org/v2/directions/driving-car/geojson',
@@ -10,9 +17,11 @@ export async function POST(req: Request) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: process.env.NEXT_PUBLIC_ORS_API_KEY!,
+          Authorization: process.env.ORS_API_KEY!,
         },
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          coordinates,
+        }),
       }
     )
 
@@ -20,6 +29,8 @@ export async function POST(req: Request) {
 
     return NextResponse.json(data)
   } catch (error) {
+    console.error('Route API error:', error)
+
     return NextResponse.json(
       { error: 'Route error' },
       { status: 500 }
