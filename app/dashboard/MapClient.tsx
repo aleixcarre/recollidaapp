@@ -104,7 +104,7 @@ export default function MapClient({ pickups }: { pickups: any[] }) {
     return [DEPOT, ...sorted]
   }, [sorted])
 
-  // 🛣️ Demanar el traçat real de la carretera a la teva API (/api/route)
+  // 🛣️ Demanar el traçat real de la carretera a la teva NOVA API (/calcular-ruta)
   useEffect(() => {
     const getRoute = async () => {
       if (routePoints.length < 2) {
@@ -117,7 +117,8 @@ export default function MapClient({ pickups }: { pickups: any[] }) {
       try {
         const coords = routePoints.map((p) => [p.longitude, p.latitude])
 
-        const res = await fetch('/api/route', {
+        // 🔄 Canviat aquí per apuntar a la nova ruta neta i forçar Vercel a despertar-se
+        const res = await fetch('/calcular-ruta', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ coordinates: coords }),
