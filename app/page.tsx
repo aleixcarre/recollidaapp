@@ -1,11 +1,25 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
 export default function Home() {
   const [loading, setLoading] = useState(false)
   const [clientName, setClientName] = useState('')
+
+  // 🧠 carregar empresa guardada
+  useEffect(() => {
+    const saved = localStorage.getItem('client_name')
+    if (saved) {
+      setClientName(saved)
+    }
+  }, [])
+
+  // 💾 guardar mentre escriu
+  const handleChange = (value: string) => {
+    setClientName(value)
+    localStorage.setItem('client_name', value)
+  }
 
   const sendPickup = async () => {
     if (!clientName) {
@@ -22,11 +36,11 @@ export default function Home() {
 
         const { error } = await supabase.from('pickups').insert([
           {
-            client_name: clientName,   // 👈 ARA ÉS DINÀMIC
+            client_name: clientName,
             status: 'pending',
             latitude,
-            longitude
-          }
+            longitude,
+          },
         ])
 
         if (error) {
@@ -34,14 +48,11 @@ export default function Home() {
           alert('Error enviant')
         } else {
           alert('Recollida enviada ✔')
-          setClientName('')
         }
 
         setLoading(false)
       },
-
-      (error) => {
-        console.log(error)
+      () => {
         alert('No s’ha pogut obtenir la ubicació')
         setLoading(false)
       }
@@ -56,32 +67,33 @@ export default function Home() {
         flexDirection: 'column',
         justifyContent: 'center',
         alignItems: 'center',
-        gap: 15
+        gap: 15,
       }}
     >
       <input
         type="text"
         placeholder="Nom de l’empresa"
         value={clientName}
-        onChange={(e) => setClientName(e.target.value)}
+        onChange={(e) => handleChange(e.target.value)}
         style={{
           padding: 15,
           fontSize: 18,
           borderRadius: 10,
           border: '1px solid gray',
-          width: 250
+          width: 260,
         }}
       />
 
       <button
         onClick={sendPickup}
+        disabled={loading}
         style={{
           padding: 30,
           fontSize: 24,
           background: 'green',
           color: 'white',
           borderRadius: 20,
-          border: 'none'
+          border: 'none',
         }}
       >
         {loading ? 'Enviant...' : 'DEMANAR RECOLLIDA'}

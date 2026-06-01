@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from 'react'
 
 // 🏭 DEPOT
 const DEPOT = {
+  id: 'depot-root',
+  client_name: 'Magatzem Central',
   latitude: 42.1172952,
   longitude: 2.772177,
 }
@@ -16,33 +18,31 @@ function distance(a: any, b: any) {
   )
 }
 
-// 🧠 Nearest Neighbor (optimitzat)
+// 🧠 Nearest Neighbor (Corregit per començar des del DEPOT)
 function sortByNearest(points: any[]) {
   if (!points?.length) return []
 
   const remaining = [...points]
   const result: any[] = []
 
-  const first = remaining.shift()
-  if (!first) return []
-
-  result.push(first)
+  // ARREGLAT: El punt de partida de la lògica sempre ha de ser el Magatzem
+  let currentPoint = DEPOT
 
   while (remaining.length) {
-    const last = result[result.length - 1]
-
     let nearestIndex = 0
     let nearestDistance = Infinity
 
     for (let i = 0; i < remaining.length; i++) {
-      const d = distance(remaining[i], last)
+      const d = distance(remaining[i], currentPoint)
       if (d < nearestDistance) {
         nearestDistance = d
         nearestIndex = i
       }
     }
 
-    result.push(remaining[nearestIndex])
+    const nextPoint = remaining[nearestIndex]
+    result.push(nextPoint)
+    currentPoint = nextPoint // El nou punt de referència és l'últim visitat
     remaining.splice(nearestIndex, 1)
   }
 
@@ -54,9 +54,21 @@ export default function MapClient({ pickups }: { pickups: any[] }) {
   const [route, setRoute] = useState<any[]>([])
   const [loadingRoute, setLoadingRoute] = useState(false)
 
-  // 🗺️ load leaflet client-side
+  // 🗺️ load leaflet client-side i arreglar icones buides
   useEffect(() => {
     const loadMap = async () => {
+      // Importem Leaflet global primer per solucionar les icones fallides de Next.js
+      const LIcon = await import('leaflet')
+      await import('leaflet/dist/leaflet.css')
+
+      // Fix per evitar icones trencades a producció/Vercel
+      delete (LIcon.Icon.Default.prototype as any)._getIconUrl
+      LIcon.Icon.Default.mergeOptions({
+        iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
+        iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
+        shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
+      })
+
       const L = await import('react-leaflet')
 
       setMap({
@@ -75,7 +87,7 @@ export default function MapClient({ pickups }: { pickups: any[] }) {
   // 📍 punts vàlids
   const validPoints = useMemo(() => {
     return (pickups || []).filter(
-      (p) => p.latitude && p.longitude
+      (p) => p && p.latitude && p.longitude
     )
   }, [pickups])
 
@@ -84,21 +96,25 @@ export default function MapClient({ pickups }: { pickups: any[] }) {
     return sortByNearest(validPoints)
   }, [validPoints])
 
-  // 🧭 ruta completa estable
+  // 🧭 ruta completa estable (S'assegura que comença i acaba/passa per l'ordre correcte)
   const routePoints = useMemo(() => {
     return [DEPOT, ...sorted]
   }, [sorted])
 
-  // 🛣️ obtenir ruta real
+  // 🛣️ obtenir ruta real de la teva API
   useEffect(() => {
     const getRoute = async () => {
-      if (routePoints.length < 2) return
+      // Si només hi ha el magatzem, no hi ha ruta que traçar
+      if (routePoints.length < 2) {
+        setRoute([])
+        return
+      }
 
       setLoadingRoute(true)
 
       try {
         const coords = routePoints.map((p) => [
-          p.longitude,
+          p.longitude, // [long, lat] és l'estàndard GeoJSON de l'API
           p.latitude,
         ])
 
@@ -112,13 +128,17 @@ export default function MapClient({ pickups }: { pickups: any[] }) {
           }),
         })
 
+        if (!res.ok) throw new Error('Error en la resposta del servidor')
         const data = await res.json()
 
-        if (!data?.features?.length) {
+        // Validació robusta del GeoJSON retornat pel teu endpoint
+        if (!data?.features?.[0]?.geometry?.coordinates) {
+          console.warn("L'API no ha retornat coordenades vàlides.")
           setRoute([])
           return
         }
 
+        // ARREGLAT: Invertim a [lat, lon] per a que Leaflet ho entengui correctament
         const line = data.features[0].geometry.coordinates.map(
           (c: any) => [c[1], c[0]]
         )
@@ -135,7 +155,7 @@ export default function MapClient({ pickups }: { pickups: any[] }) {
     getRoute()
   }, [routePoints])
 
-  if (!Map) return <p>Carregant mapa...</p>
+  if (!Map) return <p style={{ padding: '20px' }}>Carregant mapa...</p>
 
   const {
     MapContainer,
@@ -146,33 +166,38 @@ export default function MapClient({ pickups }: { pickups: any[] }) {
     useMap,
   } = Map
 
+  // Força a Leaflet a re-calcular la mida del div (soluciona talls grisos a StackBlitz)
   function FixMap() {
     const map = useMap()
-
     useEffect(() => {
       const t = setTimeout(() => {
         map.invalidateSize()
-      }, 150)
-
+      }, 200)
       return () => clearTimeout(t)
     }, [map])
-
     return null
   }
 
   return (
-    <div style={{ height: '500px', width: '100%' }}>
+    <div style={{ height: '500px', width: '100%', position: 'relative' }}>
       {loadingRoute && (
-        <p style={{ marginBottom: 8 }}>🔄 Calculant ruta...</p>
+        <div style={{
+          position: 'absolute', 
+          top: 10, 
+          left: 50, 
+          zIndex: 1000, 
+          background: 'white', 
+          padding: '4px 8px',
+          borderRadius: '4px',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+        }}>
+          🔄 Calculant ruta real...
+        </div>
       )}
 
       <MapContainer
-        center={
-          routePoints[0]
-            ? [routePoints[0].latitude, routePoints[0].longitude]
-            : [42.1172952, 2.772177]
-        }
-        zoom={12}
+        center={[DEPOT.latitude, DEPOT.longitude]}
+        zoom={13}
         style={{ height: '100%', width: '100%' }}
       >
         <FixMap />
@@ -181,25 +206,13 @@ export default function MapClient({ pickups }: { pickups: any[] }) {
 
         {/* 🏭 DEPOT */}
         <Marker position={[DEPOT.latitude, DEPOT.longitude]}>
-          <Popup>🏭 Magatzem</Popup>
+          <Popup><b>🏭 Magatzem Central</b></Popup>
         </Marker>
 
-        {/* 📍 pickups */}
-        {sorted.map((p) => (
-          <Marker key={p.id} position={[p.latitude, p.longitude]}>
+        {/* 📍 punts de recollida */}
+        {sorted.map((p, idx) => (
+          <Marker key={p.id || idx} position={[p.latitude, p.longitude]}>
             <Popup>
-              <b>{p.client_name}</b>
+              <b>Nº {idx + 1}: {p.client_name || 'Client'}</b>
               <br />
-              {p.status}
-            </Popup>
-          </Marker>
-        ))}
-
-        {/* 🛣️ ruta */}
-        {route.length > 1 && (
-          <Polyline positions={route} color="blue" />
-        )}
-      </MapContainer>
-    </div>
-  )
-}
+              Estat: {p.status
