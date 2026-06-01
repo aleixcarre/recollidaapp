@@ -74,7 +74,11 @@ export default function Home() {
       {/* Instruccions per si el botó no surt */}
       {!deferredPrompt && (
         <p style={{ fontSize: 12, color: 'gray', marginTop: 20, textAlign: 'center' }}>
-          Per tenir-ho sempre a mà: clica els 3 puntets del navegador i selecciona "Instal·lar aplicació" o "Afegir a la pantalla d'inici".
+          {!deferredPrompt && (
+        <p style={{ fontSize: 12, color: 'gray', marginTop: 20, textAlign: 'center' }}>
+          Per tenir-ho sempre a mà: clica els 3 puntets del navegador i selecciona &quot;Instal·lar aplicació&quot; o &quot;Afegir a la pantalla d&rsquo;inici&quot;.
+        </p>
+      )}
         </p>
       )}
     </div>
