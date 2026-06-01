@@ -89,12 +89,18 @@ export default function MapClient({ pickups }: { pickups: any[] }) {
     loadMap()
   }, [])
 
-  // 📍 Filtrar i assegurar que només hi ha punts vàlids amb coordenades
+  // 📍 REFORMAT: Filtra per assegurar punts vàlids i ESBORRA els que estiguin fets
   const validPoints = useMemo(() => {
-    return (pickups || []).filter((p) => p && p.latitude && p.longitude)
+    return (pickups || []).filter((p) => {
+      if (!p || !p.latitude || !p.longitude) return false
+      
+      // Convertim l'estat a minúscules per evitar errors si escrius "fet", "Fet", "Done" o "Completed"
+      const estat = (p.status || '').toLowerCase()
+      return estat !== 'fet' && estat !== 'done' && estat !== 'completed'
+    })
   }, [pickups])
 
-  // 🧠 Endreçar la llista de clients per proximitat
+  // 🧠 Endreçar la llista de clients per proximitat (només els pendents)
   const sorted = useMemo(() => {
     return sortByNearest(validPoints)
   }, [validPoints])
@@ -117,7 +123,6 @@ export default function MapClient({ pickups }: { pickups: any[] }) {
       try {
         const coords = routePoints.map((p) => [p.longitude, p.latitude])
 
-        // 🔄 Canviat aquí per apuntar a la nova ruta neta i forçar Vercel a despertar-se
         const res = await fetch('/calcular-ruta', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -158,7 +163,7 @@ export default function MapClient({ pickups }: { pickups: any[] }) {
           background: 'white', padding: '4px 8px', borderRadius: '4px',
           boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
         }}>
-          🔄 Calculant ruta pels carrers...
+          🔄 Recalculant ruta dinàmica...
         </div>
       )}
 
@@ -175,7 +180,7 @@ export default function MapClient({ pickups }: { pickups: any[] }) {
           <Popup><b>🏭 Magatzem Central</b></Popup>
         </Marker>
 
-        {/* 📍 Icones dels usuaris sol·licitants ordenats */}
+        {/* 📍 Icones dels usuaris sol·licitants ordenats pendents */}
         {sorted.map((p, idx) => (
           <Marker key={p.id || idx} position={[p.latitude, p.longitude]}>
             <Popup>
