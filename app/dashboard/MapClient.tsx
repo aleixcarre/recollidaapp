@@ -1,16 +1,24 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
-// 🏭 Punt base (MAGATZEM)
+// 🏭 DEPOT
 const DEPOT = {
   latitude: 42.1172952,
   longitude: 2.772177,
 }
 
-// 🧠 Ordenació per proximitat (Nearest Neighbor)
+// 📏 distància simple (MVP)
+function distance(a: any, b: any) {
+  return Math.hypot(
+    a.latitude - b.latitude,
+    a.longitude - b.longitude
+  )
+}
+
+// 🧠 Nearest Neighbor (optimitzat)
 function sortByNearest(points: any[]) {
-  if (!points.length) return []
+  if (!points?.length) return []
 
   const remaining = [...points]
   const result: any[] = []
@@ -20,23 +28,19 @@ function sortByNearest(points: any[]) {
 
   result.push(first)
 
-  while (remaining.length > 0) {
+  while (remaining.length) {
     const last = result[result.length - 1]
 
     let nearestIndex = 0
     let nearestDistance = Infinity
 
-    remaining.forEach((p, i) => {
-      const d = Math.hypot(
-        p.latitude - last.latitude,
-        p.longitude - last.longitude
-      )
-
+    for (let i = 0; i < remaining.length; i++) {
+      const d = distance(remaining[i], last)
       if (d < nearestDistance) {
         nearestDistance = d
         nearestIndex = i
       }
-    })
+    }
 
     result.push(remaining[nearestIndex])
     remaining.splice(nearestIndex, 1)
@@ -48,8 +52,9 @@ function sortByNearest(points: any[]) {
 export default function MapClient({ pickups }: { pickups: any[] }) {
   const [Map, setMap] = useState<any>(null)
   const [route, setRoute] = useState<any[]>([])
+  const [loadingRoute, setLoadingRoute] = useState(false)
 
-  // 🗺️ Leaflet client-side
+  // 🗺️ load leaflet client-side
   useEffect(() => {
     const loadMap = async () => {
       const L = await import('react-leaflet')
@@ -68,20 +73,28 @@ export default function MapClient({ pickups }: { pickups: any[] }) {
   }, [])
 
   // 📍 punts vàlids
-  const validPoints = (pickups || []).filter(
-    (p) => p.latitude && p.longitude
-  )
+  const validPoints = useMemo(() => {
+    return (pickups || []).filter(
+      (p) => p.latitude && p.longitude
+    )
+  }, [pickups])
 
   // 🧠 ordre optimitzat
-  const sorted = sortByNearest(validPoints)
+  const sorted = useMemo(() => {
+    return sortByNearest(validPoints)
+  }, [validPoints])
 
-  // 🧭 ruta completa (DEPOT + punts)
-  const routePoints = [DEPOT, ...sorted]
+  // 🧭 ruta completa estable
+  const routePoints = useMemo(() => {
+    return [DEPOT, ...sorted]
+  }, [sorted])
 
-  // 🛣️ ruta real (CORREGIT: depèn de routePoints)
+  // 🛣️ obtenir ruta real
   useEffect(() => {
     const getRoute = async () => {
       if (routePoints.length < 2) return
+
+      setLoadingRoute(true)
 
       try {
         const coords = routePoints.map((p) => [
@@ -89,27 +102,19 @@ export default function MapClient({ pickups }: { pickups: any[] }) {
           p.latitude,
         ])
 
-        const res = await fetch(
-          'https://api.openrouteservice.org/v2/directions/driving-car/geojson',
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: process.env.NEXT_PUBLIC_ORS_API_KEY!,
-            },
-            body: JSON.stringify({
-              coordinates: coords,
-            }),
-          }
-        )
+        const res = await fetch('/api/route', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            coordinates: coords,
+          }),
+        })
 
         const data = await res.json()
 
-        // 🧪 DEBUG IMPORTANT (si falla ho veuràs)
-        console.log('ORS RESPONSE:', data)
-
-        if (!data.features || !data.features.length) {
-          console.log('No route returned')
+        if (!data?.features?.length) {
           setRoute([])
           return
         }
@@ -120,12 +125,15 @@ export default function MapClient({ pickups }: { pickups: any[] }) {
 
         setRoute(line)
       } catch (err) {
-        console.log('Error ruta:', err)
+        console.error('Error ruta:', err)
+        setRoute([])
+      } finally {
+        setLoadingRoute(false)
       }
     }
 
     getRoute()
-  }, [routePoints]) // ✅ FIX IMPORTANT
+  }, [routePoints])
 
   if (!Map) return <p>Carregant mapa...</p>
 
@@ -142,16 +150,22 @@ export default function MapClient({ pickups }: { pickups: any[] }) {
     const map = useMap()
 
     useEffect(() => {
-      setTimeout(() => {
+      const t = setTimeout(() => {
         map.invalidateSize()
-      }, 200)
+      }, 150)
+
+      return () => clearTimeout(t)
     }, [map])
 
     return null
   }
 
   return (
-    <div style={{ height: '500px', width: '100%', marginBottom: 30 }}>
+    <div style={{ height: '500px', width: '100%' }}>
+      {loadingRoute && (
+        <p style={{ marginBottom: 8 }}>🔄 Calculant ruta...</p>
+      )}
+
       <MapContainer
         center={
           routePoints[0]
@@ -165,12 +179,12 @@ export default function MapClient({ pickups }: { pickups: any[] }) {
 
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
 
-        {/* 🏭 magatzem */}
+        {/* 🏭 DEPOT */}
         <Marker position={[DEPOT.latitude, DEPOT.longitude]}>
           <Popup>🏭 Magatzem</Popup>
         </Marker>
 
-        {/* 📍 punts clients */}
+        {/* 📍 pickups */}
         {sorted.map((p) => (
           <Marker key={p.id} position={[p.latitude, p.longitude]}>
             <Popup>
@@ -181,7 +195,7 @@ export default function MapClient({ pickups }: { pickups: any[] }) {
           </Marker>
         ))}
 
-        {/* 🛣️ ruta real */}
+        {/* 🛣️ ruta */}
         {route.length > 1 && (
           <Polyline positions={route} color="blue" />
         )}
