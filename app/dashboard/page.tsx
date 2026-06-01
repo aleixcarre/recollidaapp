@@ -47,6 +47,7 @@ export default function Dashboard() {
   const [pickups, setPickups] = useState<any[]>([])
   const [authorized, setAuthorized] = useState(false)
   const [password, setPassword] = useState('')
+  const [exporting, setExporting] = useState(false)
 
   useEffect(() => {
     if (authorized) {
@@ -72,37 +73,71 @@ export default function Dashboard() {
     if (!error) fetchPickups()
   }
 
-  // Filtrem i ordenem per proximitat abans de renderitzar o exportar
+  // Filtrem i ordenem per proximitat
   const pending = pickups.filter((p) => p.status === 'pending')
   const sortedPending = sortByNearest(pending)
 
-  // 💾 FUNCIÓ 1: Generar i descarregar fitxer GPX per a GPS tradicionals
-  const downloadGPX = () => {
+  // 💾 FUNCIÓ REFORMADA: Demana la carretera real a l'API i genera un GPX perfecte
+  const downloadGPX = async () => {
     if (sortedPending.length === 0) return alert('No hi ha rutes per exportar')
+    
+    setExporting(true)
 
-    let gpxContent = `<?xml version="1.0" encoding="UTF-8"?>
+    try {
+      // 1. Unim magatzem i punts ordenats en el mateix format que el mapa
+      const routePoints = [DEPOT, ...sortedPending]
+      const coords = routePoints.map((p) => [p.longitude, p.latitude])
+
+      // 2. Demanem el traçat real a la teva API
+      const res = await fetch('/calcular-ruta', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ coordinates: coords }),
+      })
+
+      if (!res.ok) throw new Error('Error en obtenir el traçat de la carretera')
+      const data = await res.json()
+
+      const streetCoordinates = data?.features?.[0]?.geometry?.coordinates
+      if (!streetCoordinates || streetCoordinates.length === 0) {
+        throw new Error('No s’han trobat geometries de carrer demanades')
+      }
+
+      // 3. Construïm el GPX utilitzant un "Track" (<trk>) de punts detallats en comptes de línies rectes
+      let gpxContent = `<?xml version="1.0" encoding="UTF-8"?>
 <gpx version="1.1" creator="RecollidaApp" xmlns="http://www.topografix.com/GPX/1/1">
-  <rte>
-    <name>Ruta Optimitzada</name>
-    <rtept lat="${DEPOT.latitude}" lon="${DEPOT.longitude}"><name>Magatzem Central</name></rtept>\n`
+  <trk>
+    <name>Ruta Real pels Carrers</name>
+    <trkseg>
+`
 
-    sortedPending.forEach((p, idx) => {
-      gpxContent += `    <rtept lat="${p.latitude}" lon="${p.longitude}"><name>Nº ${idx + 1} - ${p.client_name}</name></rtept>\n`
-    })
+      // streetCoordinates ve en format [Longitud, Latitud] de OpenRouteService
+      streetCoordinates.forEach((c: [number, number]) => {
+        gpxContent += `      <trkpt lat="${c[1]}" lon="${c[0]}"></trkpt>\n`
+      })
 
-    gpxContent += `  </rte>
+      gpxContent += `    </trkseg>
+  </trk>
 </gpx>`
 
-    const blob = new Blob([gpxContent], { type: 'application/gpx+xml' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `ruta_recollida_${new Date().toISOString().split('T')[0]}.gpx`
-    link.click()
-    URL.revokeObjectURL(url)
+      // 4. Llançar la descàrrega automàtica del fitxer
+      const blob = new Blob([gpxContent], { type: 'application/gpx+xml' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `ruta_carretera_real_${new Date().toISOString().split('T')[0]}.gpx`
+      link.click()
+      URL.revokeObjectURL(url)
+
+    } catch (err) {
+      console.error(err)
+      alert('Error en generar el fitxer amb rutes reals. Revisa la consola.')
+    } finally {
+      setExporting(false)
+    }
   }
 
-  // 📱 FUNCIÓ 2: Obrir enllaç multi-punt a l'app de Google Maps per al mòbil
+  // 📱 FUNCIÓ 2: Obrir enllaç a l'app de Google Maps per al mòbil
   const openInGoogleMaps = () => {
     if (sortedPending.length === 0) return alert('No hi ha punts per obrir')
 
@@ -110,7 +145,6 @@ export default function Dashboard() {
     const destination = `${DEPOT.latitude},${DEPOT.longitude}`
     const waypoints = sortedPending.map(p => `${p.latitude},${p.longitude}`).join('|')
     
-    // URL universal de Google Maps per a navegació amb punts de pas (Waypoints)
     const url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&waypoints=${encodeURIComponent(waypoints)}&travelmode=driving`
     window.open(url, '_blank')
   }
@@ -125,42 +159,16 @@ export default function Dashboard() {
 
   if (!authorized) {
     return (
-      <div
-        style={{
-          height: '100vh',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          alignItems: 'center',
-          gap: 20,
-        }}
-      >
+      <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: 20 }}>
         <h1>🔒 Dashboard Operaris</h1>
-
         <input
           type="password"
           placeholder="Contrasenya"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          style={{
-            padding: 15,
-            fontSize: 18,
-            borderRadius: 10,
-            border: '1px solid gray',
-          }}
+          style={{ padding: 15, fontSize: 18, borderRadius: 10, border: '1px solid gray' }}
         />
-
-        <button
-          onClick={login}
-          style={{
-            padding: 15,
-            fontSize: 18,
-            backgroundColor: 'black',
-            color: 'white',
-            borderRadius: 10,
-            cursor: 'pointer'
-          }}
-        >
+        <button onClick={login} style={{ padding: 15, fontSize: 18, backgroundColor: 'black', color: 'white', borderRadius: 10, cursor: 'pointer' }}>
           Entrar
         </button>
       </div>
@@ -199,12 +207,14 @@ export default function Dashboard() {
           
           <button 
             onClick={downloadGPX}
+            disabled={exporting}
             style={{
               flex: 1, padding: '14px', fontSize: '15px', backgroundColor: '#0f172a', 
-              color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold'
+              color: 'white', border: 'none', borderRadius: '8px', cursor: exporting ? 'not-allowed' : 'pointer', fontWeight: 'bold',
+              opacity: exporting ? 0.6 : 1
             }}
           >
-            💾 Descarregar fitxer .GPX (GPS)
+            {exporting ? '🔄 Processant carrers...' : '💾 Descarregar fitxer .GPX (GPS)'}
           </button>
         </div>
       )}
