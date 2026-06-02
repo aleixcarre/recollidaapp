@@ -1,15 +1,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { supabase } from '../lib/supabase'
 
 export default function Home() {
   const [loading, setLoading] = useState(false)
   const [clientName, setClientName] = useState('')
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
-  
-  const router = useRouter()
 
   useEffect(() => {
     const saved = localStorage.getItem('client_name')
@@ -34,7 +31,6 @@ export default function Home() {
     }
     
     setLoading(true)
-    
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { error } = await supabase.from('pickups').insert([
@@ -45,14 +41,12 @@ export default function Home() {
             longitude: position.coords.longitude 
           },
         ])
-        
         if (error) {
-          alert('Error enviant la recollida')
-          setLoading(false)
+          alert('Error enviant')
         } else {
-          // Redirecció només quan l'insert a Supabase és correcte
-          router.push('/dashboard') 
+          alert('Recollida enviada ✔') // Tornem a l'alert simple
         }
+        setLoading(false)
       },
       () => { 
         alert('No s’ha pogut obtenir la ubicació')
@@ -63,12 +57,8 @@ export default function Home() {
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: 15, padding: 20 }}>
-      
       {deferredPrompt && (
-        <button 
-          onClick={handleInstall}
-          style={{ padding: '10px 20px', background: '#0070f3', color: 'white', borderRadius: 10, border: 'none', marginBottom: 20 }}
-        >
+        <button onClick={handleInstall} style={{ padding: '10px 20px', background: '#0070f3', color: 'white', borderRadius: 10, border: 'none', marginBottom: 20 }}>
           📥 Instal·lar App al mòbil
         </button>
       )}
@@ -81,11 +71,7 @@ export default function Home() {
         style={{ padding: 15, fontSize: 18, borderRadius: 10, border: '1px solid gray', width: '100%', maxWidth: 260 }}
       />
 
-      <button
-        onClick={sendPickup}
-        disabled={loading}
-        style={{ padding: 30, fontSize: 24, background: 'green', color: 'white', borderRadius: 20, border: 'none', width: '100%', maxWidth: 260 }}
-      >
+      <button onClick={sendPickup} disabled={loading} style={{ padding: 30, fontSize: 24, background: 'green', color: 'white', borderRadius: 20, border: 'none', width: '100%', maxWidth: 260 }}>
         {loading ? 'Enviant...' : 'DEMANAR RECOLLIDA'}
       </button>
 
