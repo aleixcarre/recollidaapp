@@ -1,7 +1,6 @@
 import './globals.css';
 import 'leaflet/dist/leaflet.css';
 import { Inter } from 'next/font/google';
-import ManifestLoader from './ManifestLoader'; // Aquesta és la clau!
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -9,23 +8,28 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ca">
       <head>
-      </head>
-      <body className={inter.className}>
-        <ManifestLoader />
-        {children}
         <script
           dangerouslySetInnerHTML={{
             __html: `
-              if ('serviceWorker' in navigator) {
-                window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('/sw.js')
-                    .then(reg => console.log('SW registrat:', reg))
-                    .catch(err => console.log('Error SW:', err));
-                });
-              }
+              (function() {
+                var path = window.location.pathname;
+                var link = document.createElement('link');
+                link.rel = 'manifest';
+                link.href = path.startsWith('/dashboard') ? '/operari.json' : '/manifest.json';
+                document.head.appendChild(link);
+
+                if ('serviceWorker' in navigator) {
+                  window.addEventListener('load', function() {
+                    navigator.serviceWorker.register('/sw.js');
+                  });
+                }
+              })();
             `,
           }}
         />
+      </head>
+      <body className={inter.className}>
+        {children}
       </body>
     </html>
   );
