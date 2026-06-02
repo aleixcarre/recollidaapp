@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation' // 1. Importem el router
+import { useRouter } from 'next/navigation'
 import { supabase } from '../lib/supabase'
 
 export default function Home() {
@@ -9,7 +9,7 @@ export default function Home() {
   const [clientName, setClientName] = useState('')
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
   
-  const router = useRouter() // 2. Inicialitzem el router
+  const router = useRouter()
 
   useEffect(() => {
     const saved = localStorage.getItem('client_name')
@@ -34,6 +34,7 @@ export default function Home() {
     }
     
     setLoading(true)
+    
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { error } = await supabase.from('pickups').insert([
@@ -46,10 +47,10 @@ export default function Home() {
         ])
         
         if (error) {
-          alert('Error enviant')
+          alert('Error enviant la recollida')
           setLoading(false)
         } else {
-          // 3. ÈXIT: Redirigim automàticament al dashboard
+          // Redirecció només quan l'insert a Supabase és correcte
           router.push('/dashboard') 
         }
       },
@@ -63,7 +64,6 @@ export default function Home() {
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: 15, padding: 20 }}>
       
-      {/* 📥 BOTÓ D'INSTAL·LACIÓ */}
       {deferredPrompt && (
         <button 
           onClick={handleInstall}
