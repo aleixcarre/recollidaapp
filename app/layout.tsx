@@ -1,54 +1,45 @@
-import './globals.css';
-import 'leaflet/dist/leaflet.css';
-import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+'use client';
+import { useState, useEffect } from 'react';
 
-const inter = Inter({ subsets: ['latin'] });
+export default function InstallButton() {
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showButton, setShowButton] = useState(false);
 
-// Hem mogut el themeColor aquí dins per evitar l'error de tipus
-export const metadata: Metadata = {
-  title: 'Recollidapp',
-  description: 'Sistema de gestió i optimització de recollides',
-  manifest: '/manifest.json',
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: 'default',
-    title: 'Recollidapp',
-  },
-  formatDetection: {
-    telephone: false,
-  },
-  themeColor: '#000000', // <-- El posem aquí directament
-};
+  useEffect(() => {
+    const handler = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setShowButton(true);
+    };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstall = () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then((choiceResult: any) => {
+        if (choiceResult.outcome === 'accepted') {
+          setShowButton(false);
+        }
+        setDeferredPrompt(null);
+      });
+    }
+  };
+
+  if (!showButton) return null;
+
   return (
-    <html lang="ca">
-      <head>
-        <link rel="apple-touch-icon" href="/icon-192.png" />
-      </head>
-      <body className={inter.className}>
-        {children}
-
-        {/* Script per registrar el Service Worker */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              if ('serviceWorker' in navigator) {
-                window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('/sw.js')
-                    .then((reg) => console.log('Recollidapp SW registrat'))
-                    .catch((err) => console.error('Error SW:', err));
-                });
-              }
-            `,
-          }}
-        />
-      </body>
-    </html>
+    <button 
+      onClick={handleInstall}
+      style={{
+        position: 'fixed', bottom: '20px', right: '20px', 
+        padding: '15px', backgroundColor: '#000', color: '#fff', 
+        borderRadius: '10px', zIndex: 9999
+      }}
+    >
+      Instal·lar Recollidapp
+    </button>
   );
 }
