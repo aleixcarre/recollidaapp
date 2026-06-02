@@ -3,36 +3,22 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 
-// 🏭 DEPOT
-const DEPOT = {
-  id: 'depot-root',
-  client_name: 'Magatzem Central',
-  latitude: 42.1172952,
-  longitude: 2.772177,
-}
+const DEPOT = { id: 'depot-root', client_name: 'Magatzem Central', latitude: 42.1172952, longitude: 2.772177 }
 
-function distance(a: any, b: any) {
-  return Math.hypot(a.latitude - b.latitude, a.longitude - b.longitude)
-}
+function distance(a: any, b: any) { return Math.hypot(a.latitude - b.latitude, a.longitude - b.longitude) }
 
 function sortByNearest(points: any[]) {
   if (!points?.length) return []
-  const remaining = [...points]
-  const result: any[] = []
+  const remaining = [...points], result = []
   let currentPoint = DEPOT
   while (remaining.length) {
-    let nearestIndex = 0
-    let nearestDistance = Infinity
+    let nearestIndex = 0, nearestDistance = Infinity
     for (let i = 0; i < remaining.length; i++) {
       const d = distance(remaining[i], currentPoint)
-      if (d < nearestDistance) {
-        nearestDistance = d
-        nearestIndex = i
-      }
+      if (d < nearestDistance) { nearestDistance = d; nearestIndex = i }
     }
-    const nextPoint = remaining[nearestIndex]
-    result.push(nextPoint)
-    currentPoint = nextPoint
+    result.push(remaining[nearestIndex])
+    currentPoint = remaining[nearestIndex]
     remaining.splice(nearestIndex, 1)
   }
   return result
@@ -40,10 +26,7 @@ function sortByNearest(points: any[]) {
 
 function FixMap({ useMap }: { useMap: any }) {
   const map = useMap()
-  useEffect(() => {
-    const t = setTimeout(() => { if (map) map.invalidateSize() }, 200)
-    return () => clearTimeout(t)
-  }, [map])
+  useEffect(() => { const t = setTimeout(() => { if (map) map.invalidateSize() }, 200); return () => clearTimeout(t) }, [map])
   return null
 }
 
@@ -51,25 +34,17 @@ export default function MapClient({ pickups: initialPickups }: { pickups: any[] 
   const [pickups, setPickups] = useState(initialPickups)
   const [Map, setMap] = useState<any>(null)
   const [route, setRoute] = useState<any[]>([])
-  const [loadingRoute, setLoadingRoute] = useState(false)
 
-  // 🔄 MÈTODE INFAL·LIBLE: Actualització automàtica cada 5 segons
+  // 1. Actualització automàtica cada 5 segons
   useEffect(() => {
     const interval = setInterval(async () => {
-      const { data } = await supabase
-        .from('pickups')
-        .select('*')
-        .order('created_at', { ascending: false })
-
-      if (data) {
-        setPickups(data)
-      }
+      const { data } = await supabase.from('pickups').select('*').order('created_at', { ascending: false })
+      if (data) setPickups(data)
     }, 5000)
-
     return () => clearInterval(interval)
   }, [])
 
-  // 🗺️ Càrrega dinàmica
+  // 2. Càrrega Mapa
   useEffect(() => {
     const loadMap = async () => {
       const LIcon = await import('leaflet')
@@ -85,55 +60,39 @@ export default function MapClient({ pickups: initialPickups }: { pickups: any[] 
     loadMap()
   }, [])
 
-  const validPoints = useMemo(() => {
-    return (pickups || []).filter((p) => {
-      if (!p || !p.latitude || !p.longitude) return false
-      const estat = (p.status || '').toLowerCase()
-      return estat !== 'fet' && estat !== 'done' && estat !== 'completed'
-    })
-  }, [pickups])
-
+  const validPoints = useMemo(() => (pickups || []).filter((p) => p.latitude && p.longitude && !['fet', 'done', 'completed'].includes((p.status || '').toLowerCase())), [pickups])
   const sorted = useMemo(() => sortByNearest(validPoints), [validPoints])
-  const routePoints = useMemo(() => [DEPOT, ...sorted], [sorted])
 
-  useEffect(() => {
-    const getRoute = async () => {
-      if (routePoints.length < 2) { setRoute([]); return }
-      setLoadingRoute(true)
-      try {
-        const coords = routePoints.map((p) => [p.longitude, p.latitude])
-        const res = await fetch('/calcular-ruta', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ coordinates: coords }),
-        })
-        const data = await res.json()
-        if (data?.features?.[0]?.geometry?.coordinates) {
-          const line = data.features[0].geometry.coordinates.map((c: any) => [c[1], c[0]])
-          setRoute(line)
-        }
-      } catch (err) { console.error(err); setRoute([]) } finally { setLoadingRoute(false) }
-    }
-    getRoute()
-  }, [routePoints])
+  const markAsDone = async (id: number) => {
+    await supabase.from('pickups').update({ status: 'done' }).eq('id', id)
+    setPickups(pickups.filter(p => p.id !== id))
+  }
 
   if (!Map) return <p style={{ padding: '20px' }}>Carregant mapa...</p>
   const { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } = Map
 
   return (
-    <div style={{ height: '500px', width: '100%', position: 'relative' }}>
-      {loadingRoute && <div style={{ position: 'absolute', top: 10, left: 50, zIndex: 1000, background: 'white', padding: '4px 8px', borderRadius: '4px' }}>🔄 Recalculant...</div>}
-      <MapContainer center={[DEPOT.latitude, DEPOT.longitude]} zoom={13} style={{ height: '100%', width: '100%' }}>
-        <FixMap useMap={useMap} />
-        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-        <Marker position={[DEPOT.latitude, DEPOT.longitude]}><Popup><b>🏭 Magatzem Central</b></Popup></Marker>
-        {sorted.map((p, idx) => (
-          <Marker key={p.id || idx} position={[p.latitude, p.longitude]}>
-            <Popup><b>Nº {idx + 1}: {p.client_name}</b></Popup>
-          </Marker>
-        ))}
-        {route.length > 1 && <Polyline positions={route} color="#3b82f6" weight={5} />}
-      </MapContainer>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '10px' }}>
+      <div style={{ height: '400px', width: '100%' }}>
+        <MapContainer center={[DEPOT.latitude, DEPOT.longitude]} zoom={13} style={{ height: '100%', width: '100%' }}>
+          <FixMap useMap={useMap} />
+          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+          <Marker position={[DEPOT.latitude, DEPOT.longitude]}><Popup><b>🏭 Magatzem Central</b></Popup></Marker>
+          {sorted.map((p, idx) => (
+            <Marker key={p.id} position={[p.latitude, p.longitude]}><Popup><b>{p.client_name}</b></Popup></Marker>
+          ))}
+        </MapContainer>
+      </div>
+
+      <h3>Recollides pendents:</h3>
+      {sorted.map((p) => (
+        <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', border: '1px solid #ddd', borderRadius: '8px' }}>
+          <span><b>{p.client_name}</b></span>
+          <button onClick={() => markAsDone(p.id)} style={{ background: 'green', color: 'white', padding: '10px', borderRadius: '5px', border: 'none' }}>
+            ✅ Marcar com a fet
+          </button>
+        </div>
+      ))}
     </div>
   )
 }
