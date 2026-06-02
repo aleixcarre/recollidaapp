@@ -1,12 +1,15 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation' // 1. Importem el router
 import { supabase } from '../lib/supabase'
 
 export default function Home() {
   const [loading, setLoading] = useState(false)
   const [clientName, setClientName] = useState('')
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
+  
+  const router = useRouter() // 2. Inicialitzem el router
 
   useEffect(() => {
     const saved = localStorage.getItem('client_name')
@@ -41,9 +44,14 @@ export default function Home() {
             longitude: position.coords.longitude 
           },
         ])
-        if (error) alert('Error enviant')
-        else alert('Recollida enviada ✔')
-        setLoading(false)
+        
+        if (error) {
+          alert('Error enviant')
+          setLoading(false)
+        } else {
+          // 3. ÈXIT: Redirigim automàticament al dashboard
+          router.push('/dashboard') 
+        }
       },
       () => { 
         alert('No s’ha pogut obtenir la ubicació')
@@ -81,7 +89,6 @@ export default function Home() {
         {loading ? 'Enviant...' : 'DEMANAR RECOLLIDA'}
       </button>
 
-      {/* Instruccions per si el botó no surt */}
       {!deferredPrompt && (
         <p style={{ fontSize: 12, color: 'gray', marginTop: 20, textAlign: 'center', maxWidth: 300 }}>
           Per tenir-ho sempre a mà: clica els 3 puntets del navegador i selecciona &quot;Instal·lar aplicació&quot; o &quot;Afegir a la pantalla d&rsquo;inici&quot;.
