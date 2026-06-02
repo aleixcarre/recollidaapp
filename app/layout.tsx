@@ -1,11 +1,11 @@
 import './globals.css';
 import 'leaflet/dist/leaflet.css';
-import type { Metadata, Viewport } from 'next';
+import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 
 const inter = Inter({ subsets: ['latin'] });
 
-// Definició de metadades per a PWA
+// Hem mogut el themeColor aquí dins per evitar l'error de tipus
 export const metadata: Metadata = {
   title: 'Recollidapp',
   description: 'Sistema de gestió i optimització de recollides',
@@ -18,11 +18,7 @@ export const metadata: Metadata = {
   formatDetection: {
     telephone: false,
   },
-};
-
-// Definició del color de la barra del sistema al mòbil
-export const viewport: Viewport = {
-  themeColor: '#000000',
+  themeColor: '#000000', // <-- El posem aquí directament
 };
 
 export default function RootLayout({
