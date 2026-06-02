@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { supabase } from '../../lib/supabase' // CORRECCIÓ: Ara apunta bé al fitxer
+import { supabase } from '../../lib/supabase'
 
 // 🏭 DEPOT
 const DEPOT = {
@@ -53,23 +53,21 @@ export default function MapClient({ pickups: initialPickups }: { pickups: any[] 
   const [route, setRoute] = useState<any[]>([])
   const [loadingRoute, setLoadingRoute] = useState(false)
 
-  // 🚀 REALTIME: Sincronització automàtica
+  // 🔄 MÈTODE INFAL·LIBLE: Actualització automàtica cada 5 segons
   useEffect(() => {
-    setPickups(initialPickups)
-    
-    const channel = supabase
-      .channel('realtime-pickups')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'pickups' },
-        (payload) => {
-          setPickups((prev) => [payload.new, ...prev]);
-        }
-      )
-      .subscribe();
+    const interval = setInterval(async () => {
+      const { data } = await supabase
+        .from('pickups')
+        .select('*')
+        .order('created_at', { ascending: false })
 
-    return () => { supabase.removeChannel(channel) };
-  }, [initialPickups]);
+      if (data) {
+        setPickups(data)
+      }
+    }, 5000)
+
+    return () => clearInterval(interval)
+  }, [])
 
   // 🗺️ Càrrega dinàmica
   useEffect(() => {
@@ -124,7 +122,7 @@ export default function MapClient({ pickups: initialPickups }: { pickups: any[] 
 
   return (
     <div style={{ height: '500px', width: '100%', position: 'relative' }}>
-      {loadingRoute && <div style={{ position: 'absolute', top: 10, left: 50, zIndex: 1000, background: 'white', padding: '4px 8px', borderRadius: '4px' }}>🔄 Recalculant ruta...</div>}
+      {loadingRoute && <div style={{ position: 'absolute', top: 10, left: 50, zIndex: 1000, background: 'white', padding: '4px 8px', borderRadius: '4px' }}>🔄 Recalculant...</div>}
       <MapContainer center={[DEPOT.latitude, DEPOT.longitude]} zoom={13} style={{ height: '100%', width: '100%' }}>
         <FixMap useMap={useMap} />
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
