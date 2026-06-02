@@ -1,9 +1,9 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { supabase } from '../lib/supabase'
+import { supabase } from '../../lib/supabase' // CORRECCIÓ: Ara apunta bé al fitxer
 
-// 🏭 DEPOT (Punt de partida)
+// 🏭 DEPOT
 const DEPOT = {
   id: 'depot-root',
   client_name: 'Magatzem Central',
@@ -20,7 +20,6 @@ function sortByNearest(points: any[]) {
   const remaining = [...points]
   const result: any[] = []
   let currentPoint = DEPOT
-
   while (remaining.length) {
     let nearestIndex = 0
     let nearestDistance = Infinity
@@ -54,7 +53,7 @@ export default function MapClient({ pickups: initialPickups }: { pickups: any[] 
   const [route, setRoute] = useState<any[]>([])
   const [loadingRoute, setLoadingRoute] = useState(false)
 
-  // 🚀 REALTIME: Sincronització automàtica quan entra una nova recollida
+  // 🚀 REALTIME: Sincronització automàtica
   useEffect(() => {
     setPickups(initialPickups)
     
@@ -72,7 +71,7 @@ export default function MapClient({ pickups: initialPickups }: { pickups: any[] 
     return () => { supabase.removeChannel(channel) };
   }, [initialPickups]);
 
-  // 🗺️ Càrrega dinàmica de Leaflet
+  // 🗺️ Càrrega dinàmica
   useEffect(() => {
     const loadMap = async () => {
       const LIcon = await import('leaflet')
