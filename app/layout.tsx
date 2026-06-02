@@ -1,45 +1,27 @@
-'use client';
-import { useState, useEffect } from 'react';
+import './globals.css';
+import 'leaflet/dist/leaflet.css';
+import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
 
-export default function InstallButton() {
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [showButton, setShowButton] = useState(false);
+const inter = Inter({ subsets: ['latin'] });
 
-  useEffect(() => {
-    const handler = (e: any) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-      setShowButton(true);
-    };
+export const metadata: Metadata = {
+  title: 'Recollidapp',
+  description: 'Sistema de gestió i optimització de recollides',
+  manifest: '/manifest.json',
+  themeColor: '#000000',
+};
 
-    window.addEventListener('beforeinstallprompt', handler);
-    return () => window.removeEventListener('beforeinstallprompt', handler);
-  }, []);
-
-  const handleInstall = () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      deferredPrompt.userChoice.then((choiceResult: any) => {
-        if (choiceResult.outcome === 'accepted') {
-          setShowButton(false);
-        }
-        setDeferredPrompt(null);
-      });
-    }
-  };
-
-  if (!showButton) return null;
-
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <button 
-      onClick={handleInstall}
-      style={{
-        position: 'fixed', bottom: '20px', right: '20px', 
-        padding: '15px', backgroundColor: '#000', color: '#fff', 
-        borderRadius: '10px', zIndex: 9999
-      }}
-    >
-      Instal·lar Recollidapp
-    </button>
+    <html lang="ca">
+      <body className={inter.className}>
+        {children}
+      </body>
+    </html>
   );
 }
