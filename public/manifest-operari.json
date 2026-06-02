@@ -1,9 +1,7 @@
 {
-  "id": "/dashboard",
   "name": "Recollidapp Operari",
-  "short_name": "Recollidapp Ops",
-  "start_url": "/dashboard",
-  "scope": "/dashboard",
+  "short_name": "Operaris",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#000000",
   "theme_color": "#000000",

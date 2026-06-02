@@ -8,29 +8,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ca">
       <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                var path = window.location.pathname;
-                var link = document.createElement('link');
-                link.rel = 'manifest';
-                link.href = path.startsWith('/dashboard') ? '/operari.json' : '/manifest.json';
-                document.head.appendChild(link);
-
-                if ('serviceWorker' in navigator) {
-                  window.addEventListener('load', function() {
-                    navigator.serviceWorker.register('/sw.js');
-                  });
-                }
-              })();
-            `,
-          }}
-        />
+        {/* Simplement apuntem a un fitxer que existeixi */}
+        <link rel="manifest" href="/manifest.json" />
       </head>
-      <body className={inter.className}>
-        {children}
-      </body>
+      <body className={inter.className}>{children}</body>
     </html>
   );
 }
