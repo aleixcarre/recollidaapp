@@ -1,6 +1,6 @@
 {
     "id": "/dashboard",
-    "name": "Recollidapp Operari",
+    "name": "Recollidapp Operari TEST",
     "short_name": "Recollidapp Ops",
     "start_url": "/dashboard",
     "scope": "/dashboard",
