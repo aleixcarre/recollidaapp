@@ -35,7 +35,6 @@ export default function MapClient({ pickups: initialPickups }: { pickups: any[] 
   const [Map, setMap] = useState<any>(null)
   const [route, setRoute] = useState<any[]>([])
 
-  // 1. Actualització automàtica cada 5 segons
   useEffect(() => {
     const interval = setInterval(async () => {
       const { data } = await supabase.from('pickups').select('*').order('created_at', { ascending: false })
@@ -44,7 +43,6 @@ export default function MapClient({ pickups: initialPickups }: { pickups: any[] 
     return () => clearInterval(interval)
   }, [])
 
-  // 2. Càrrega Mapa
   useEffect(() => {
     const loadMap = async () => {
       const LIcon = await import('leaflet')
@@ -62,6 +60,25 @@ export default function MapClient({ pickups: initialPickups }: { pickups: any[] 
 
   const validPoints = useMemo(() => (pickups || []).filter((p) => p.latitude && p.longitude && !['fet', 'done', 'completed'].includes((p.status || '').toLowerCase())), [pickups])
   const sorted = useMemo(() => sortByNearest(validPoints), [validPoints])
+  const routePoints = useMemo(() => [DEPOT, ...sorted], [sorted])
+
+  useEffect(() => {
+    const getRoute = async () => {
+      if (routePoints.length < 2) { setRoute([]); return }
+      try {
+        const res = await fetch('/calcular-ruta', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ coordinates: routePoints.map((p) => [p.longitude, p.latitude]) }),
+        })
+        const data = await res.json()
+        if (data?.features?.[0]?.geometry?.coordinates) {
+          setRoute(data.features[0].geometry.coordinates.map((c: any) => [c[1], c[0]]))
+        }
+      } catch (err) { console.error(err); setRoute([]) }
+    }
+    getRoute()
+  }, [routePoints])
 
   const markAsDone = async (id: number) => {
     await supabase.from('pickups').update({ status: 'done' }).eq('id', id)
@@ -78,9 +95,10 @@ export default function MapClient({ pickups: initialPickups }: { pickups: any[] 
           <FixMap useMap={useMap} />
           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
           <Marker position={[DEPOT.latitude, DEPOT.longitude]}><Popup><b>🏭 Magatzem Central</b></Popup></Marker>
-          {sorted.map((p, idx) => (
+          {sorted.map((p) => (
             <Marker key={p.id} position={[p.latitude, p.longitude]}><Popup><b>{p.client_name}</b></Popup></Marker>
           ))}
+          {route.length > 1 && <Polyline positions={route} color="#3b82f6" weight={5} />}
         </MapContainer>
       </div>
 
