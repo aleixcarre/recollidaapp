@@ -85,6 +85,18 @@ export default function MapClient({ pickups: initialPickups }: { pickups: any[] 
     setPickups(pickups.filter(p => p.id !== id))
   }
 
+  const downloadGPX = () => {
+    const gpxHeader = '<?xml version="1.0" encoding="UTF-8"?><gpx version="1.1" creator="AppRutes"><trk><trkseg>';
+    const gpxPoints = route.map(c => `<trkpt lat="${c[0]}" lon="${c[1]}"></trkpt>`).join('');
+    const gpxFooter = '</trkseg></trk></gpx>';
+    const blob = new Blob([gpxHeader + gpxPoints + gpxFooter], { type: 'text/xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'ruta.gpx';
+    a.click();
+  }
+
   if (!Map) return <p style={{ padding: '20px' }}>Carregant mapa...</p>
   const { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } = Map
 
@@ -102,13 +114,18 @@ export default function MapClient({ pickups: initialPickups }: { pickups: any[] 
         </MapContainer>
       </div>
 
+      <button onClick={downloadGPX} style={{ background: '#333', color: 'white', padding: '10px', borderRadius: '5px', border: 'none' }}>
+        💾 Descarregar ruta GPX
+      </button>
+
       <h3>Recollides pendents:</h3>
       {sorted.map((p) => (
-        <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', border: '1px solid #ddd', borderRadius: '8px' }}>
+        <div key={p.id} style={{ display: 'flex', flexDirection: 'column', gap: '5px', padding: '10px', border: '1px solid #ddd', borderRadius: '8px' }}>
           <span><b>{p.client_name}</b></span>
-          <button onClick={() => markAsDone(p.id)} style={{ background: 'green', color: 'white', padding: '10px', borderRadius: '5px', border: 'none' }}>
-            ✅ Marcar com a fet
-          </button>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button onClick={() => markAsDone(p.id)} style={{ background: 'green', color: 'white', padding: '8px', borderRadius: '5px', border: 'none' }}>✅ Fet</button>
+            <a href={`https://www.google.com/maps/dir/?api=1&destination=${p.latitude},${p.longitude}`} target="_blank" rel="noopener noreferrer" style={{ background: '#4285F4', color: 'white', padding: '8px 12px', borderRadius: '5px', textDecoration: 'none' }}>📍 Google Maps</a>
+          </div>
         </div>
       ))}
     </div>
