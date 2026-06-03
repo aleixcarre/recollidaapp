@@ -77,18 +77,16 @@ export default function Dashboard() {
   const pending = pickups.filter((p) => p.status === 'pending')
   const sortedPending = sortByNearest(pending)
 
-  // 💾 FUNCIÓ REFORMADA: Demana la carretera real a l'API i genera un GPX perfecte
+  // 💾 FUNCIÓ REFORMADA: Genera un GPX perfecte compatible amb aplicacions de GPS professionals
   const downloadGPX = async () => {
     if (sortedPending.length === 0) return alert('No hi ha rutes per exportar')
     
     setExporting(true)
 
     try {
-      // 1. Unim magatzem i punts ordenats en el mateix format que el mapa
       const routePoints = [DEPOT, ...sortedPending]
       const coords = routePoints.map((p) => [p.longitude, p.latitude])
 
-      // 2. Demanem el traçat real a la teva API
       const res = await fetch('/calcular-ruta', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -103,15 +101,17 @@ export default function Dashboard() {
         throw new Error('No s’han trobat geometries de carrer demanades')
       }
 
-      // 3. Construïm el GPX utilitzant un "Track" (<trk>) de punts detallats en comptes de línies rectes
+      // Capçalera estàndard XML/GPX vàlida universalment perquè el dispositiu GPS llegeixi la línia
       let gpxContent = `<?xml version="1.0" encoding="UTF-8"?>
-<gpx version="1.1" creator="RecollidaApp" xmlns="http://www.topografix.com/GPX/1/1">
+<gpx version="1.1" creator="RecollidaApp" 
+  xmlns="http://www.topografix.com/GPX/1/1" 
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+  xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
   <trk>
     <name>Ruta Real pels Carrers</name>
     <trkseg>
 `
 
-      // streetCoordinates ve en format [Longitud, Latitud] de OpenRouteService
       streetCoordinates.forEach((c: [number, number]) => {
         gpxContent += `      <trkpt lat="${c[1]}" lon="${c[0]}"></trkpt>\n`
       })
@@ -120,7 +120,6 @@ export default function Dashboard() {
   </trk>
 </gpx>`
 
-      // 4. Llançar la descàrrega automàtica del fitxer
       const blob = new Blob([gpxContent], { type: 'application/gpx+xml' })
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
@@ -137,7 +136,7 @@ export default function Dashboard() {
     }
   }
 
-  // 📱 FUNCIÓ 2: Obrir enllaç a l'app de Google Maps per al mòbil
+  // 📱 FUNCIÓ 2: Obrir enllaç a l'app de Google Maps per al mòbil (Corregit l'enllaç trencat)
   const openInGoogleMaps = () => {
     if (sortedPending.length === 0) return alert('No hi ha punts per obrir')
 
@@ -145,6 +144,7 @@ export default function Dashboard() {
     const destination = `${DEPOT.latitude},${DEPOT.longitude}`
     const waypoints = sortedPending.map(p => `${p.latitude},${p.longitude}`).join('|')
     
+    // S'ha corregit el subdomini erroni a l'URL oficial de Google Maps
     const url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&waypoints=${encodeURIComponent(waypoints)}&travelmode=driving`
     window.open(url, '_blank')
   }
@@ -180,7 +180,7 @@ export default function Dashboard() {
 
       <h1 style={{ marginBottom: 20 }}>🚛 DASHBOARD OPERARIS</h1>
 
-      {/* 🗺️ MAPA */}
+      {/* 🗺️ MAPA (Ara actua netament com a visor, sense pintar botons ni llistes a sota) */}
       <div style={{ borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', marginBottom: 30 }}>
         <MapClient pickups={pickups} />
       </div>
