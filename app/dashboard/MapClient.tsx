@@ -87,26 +87,26 @@ export default function MapClient({ pickups: initialPickups }: { pickups: any[] 
 
   const downloadGPX = () => {
     if (!route || route.length === 0) return;
-    
-    // Capçalera estàndard GPX reconeguda per qualsevol app de GPS (amb esquema de rutes)
+
+    // Capçalera estàndard XML/GPX perquè qualsevol dispositiu o aplicació GPS la reconegui nativament
     const gpxHeader = '<?xml version="1.0" encoding="UTF-8"?>\n' +
                       '<gpx version="1.1" creator="AppRutes" ' +
                       'xmlns="http://www.topografix.com/GPX/1/1" ' +
                       'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" ' +
                       'xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">\n' +
                       '  <rte>\n' +
-                      '    <name>Ruta de Recollida</name>\n';
-    
-    // Punts de pas tancats correctament sota l'estàndard <rtept>
+                      '    <name>Ruta Optimitzada de Recollida</name>\n';
+
+    // Es generen els punts de la ruta de manera vàlida amb tancament xml explícit
     const gpxPoints = route.map(c => `    <rtept lat="${c[0]}" lon="${c[1]}"></rtept>`).join('\n');
     const gpxFooter = '\n  </rte>\n</gpx>';
-    
-    // Ús del MIME-type correcte de GPX per obrir directament amb aplicacions mòbils de mapes
+
+    // Fem servir el tipus MIME correcte d'un fitxer GPX per a dispositius mòbils/GPS
     const blob = new Blob([gpxHeader + gpxPoints + gpxFooter], { type: 'application/gpx+xml' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'ruta.gpx';
+    a.download = 'ruta_diaria.gpx';
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -116,6 +116,8 @@ export default function MapClient({ pickups: initialPickups }: { pickups: any[] 
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '10px' }}>
+      
+      {/* 1. SECCIÓ DEL MAPA */}
       <div style={{ height: '400px', width: '100%' }}>
         <MapContainer center={[DEPOT.latitude, DEPOT.longitude]} zoom={13} style={{ height: '100%', width: '100%' }}>
           <FixMap useMap={useMap} />
@@ -128,28 +130,34 @@ export default function MapClient({ pickups: initialPickups }: { pickups: any[] 
         </MapContainer>
       </div>
 
-      <button onClick={downloadGPX} style={{ background: '#333', color: 'white', padding: '10px', borderRadius: '5px', border: 'none', cursor: 'pointer' }}>
-        💾 Descarregar ruta GPX
+      {/* 2. BOTÓ DE DESCÀRREGA */}
+      <button onClick={downloadGPX} style={{ background: '#333', color: 'white', padding: '12px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
+        💾 Descarregar ruta GPX para GPS
       </button>
 
-      {sorted.length > 0 ? (
-        <>
-          <h3>Recollides pendents:</h3>
-          {sorted.map((p) => (
-            <div key={p.id} style={{ display: 'flex', flexDirection: 'column', gap: '5px', padding: '10px', border: '1px solid #ddd', borderRadius: '8px' }}>
-              <span><b>{p.client_name}</b></span>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <button onClick={() => markAsDone(p.id)} style={{ background: 'green', color: 'white', padding: '8px', borderRadius: '5px', border: 'none', cursor: 'pointer' }}>✅ Fet</button>
-                <a href={`https://www.google.com/maps/search/?api=1&query=${p.latitude},${p.longitude}`} target="_blank" rel="noopener noreferrer" style={{ background: '#4285F4', color: 'white', padding: '8px 12px', borderRadius: '5px', textDecoration: 'none' }}>📍 Google Maps</a>
+      {/* 3. FEED NET DE RECOLLIDES (Sense duplicats de codi) */}
+      <div style={{ marginTop: '10px' }}>
+        <h3 style={{ borderBottom: '2px solid #f59e0b', paddingBottom: '5px', color: '#333' }}>📍 Recollides Pendents</h3>
+        
+        {sorted.length > 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '15px' }}>
+            {sorted.map((p) => (
+              <div key={p.id} style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '15px', border: '1px solid #eee', borderRadius: '8px', backgroundColor: '#fff', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                <span style={{ fontSize: '16px' }}><b>{p.client_name}</b></span>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button onClick={() => markAsDone(p.id)} style={{ background: '#22c55e', color: 'white', padding: '8px 16px', borderRadius: '5px', border: 'none', cursor: 'pointer', fontWeight: '5px' }}>✅ Fet</button>
+                  <a href={`https://www.google.com/maps/search/?api=1&query=${p.latitude},${p.longitude}`} target="_blank" rel="noopener noreferrer" style={{ background: '#4285F4', color: 'white', padding: '8px 16px', borderRadius: '5px', textDecoration: 'none', fontSize: '14px', display: 'inline-flex', alignItems: 'center' }}>📍 Google Maps</a>
+                </div>
               </div>
-            </div>
-          ))}
-        </>
-      ) : (
-        <div style={{ padding: '20px', textAlign: 'center', background: '#f0fdf4', color: '#166534', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
-          🎉 <b>Feina feta! No queden recollides pendents.</b>
-        </div>
-      )}
+            ))}
+          </div>
+        ) : (
+          <div style={{ padding: '20px', textAlign: 'center', background: '#f0fdf4', color: '#166534', borderRadius: '8px', border: '1px solid #bbf7d0', marginTop: '15px' }}>
+            🎉 <b>Feina feta! No queden recollides pendents per avui.</b>
+          </div>
+        )}
+      </div>
+
     </div>
   )
 }
