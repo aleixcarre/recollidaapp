@@ -77,16 +77,18 @@ export default function Dashboard() {
   const pending = pickups.filter((p) => p.status === 'pending')
   const sortedPending = sortByNearest(pending)
 
-  // 💾 FUNCIÓ REFORMADA: Genera un GPX perfecte compatible amb aplicacions de GPS professionals
+  // 💾 FUNCIÓ ASSEGURADA: Demana la carretera real i genera el traçat mil·limètric en el GPX
   const downloadGPX = async () => {
     if (sortedPending.length === 0) return alert('No hi ha rutes per exportar')
     
     setExporting(true)
 
     try {
+      // 1. Preparem els punts ordenats partint del magatzem central
       const routePoints = [DEPOT, ...sortedPending]
       const coords = routePoints.map((p) => [p.longitude, p.latitude])
 
+      // 2. Truquem a la teva API de rutes reals (OpenRouteService / OSRM)
       const res = await fetch('/calcular-ruta', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -96,22 +98,24 @@ export default function Dashboard() {
       if (!res.ok) throw new Error('Error en obtenir el traçat de la carretera')
       const data = await res.json()
 
+      // Obtenim la llista de micro-coordenades que formen cada revolt del carrer
       const streetCoordinates = data?.features?.[0]?.geometry?.coordinates
       if (!streetCoordinates || streetCoordinates.length === 0) {
         throw new Error('No s’han trobat geometries de carrer demanades')
       }
 
-      // Capçalera estàndard XML/GPX vàlida universalment perquè el dispositiu GPS llegeixi la línia
+      // 3. Generem l'XML oficial amb el format <trkseg> (Track Segment), que és el que pinta la línia contínua al GPS
       let gpxContent = `<?xml version="1.0" encoding="UTF-8"?>
 <gpx version="1.1" creator="RecollidaApp" 
   xmlns="http://www.topografix.com/GPX/1/1" 
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
   xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
   <trk>
-    <name>Ruta Real pels Carrers</name>
+    <name>Ruta Real de Recollida</name>
     <trkseg>
 `
 
+      // Recorrem totes les coordenades reals de la carretera i les afegim com a punts de traçat (trkpt)
       streetCoordinates.forEach((c: [number, number]) => {
         gpxContent += `      <trkpt lat="${c[1]}" lon="${c[0]}"></trkpt>\n`
       })
@@ -120,23 +124,23 @@ export default function Dashboard() {
   </trk>
 </gpx>`
 
+      // 4. Executem la descàrrega del fitxer amb el tipus MIME correcte
       const blob = new Blob([gpxContent], { type: 'application/gpx+xml' })
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.download = `ruta_carretera_real_${new Date().toISOString().split('T')[0]}.gpx`
+      link.download = `ruta_traçat_real_${new Date().toISOString().split('T')[0]}.gpx`
       link.click()
       URL.revokeObjectURL(url)
 
     } catch (err) {
       console.error(err)
-      alert('Error en generar el fitxer amb rutes reals. Revisa la consola.')
+      alert('Error en generar el fitxer amb el traçat real dels carrers.')
     } finally {
       setExporting(false)
     }
   }
 
-  // 📱 FUNCIÓ 2: Obrir enllaç a l'app de Google Maps per al mòbil (Corregit l'enllaç trencat)
   const openInGoogleMaps = () => {
     if (sortedPending.length === 0) return alert('No hi ha punts per obrir')
 
@@ -144,7 +148,6 @@ export default function Dashboard() {
     const destination = `${DEPOT.latitude},${DEPOT.longitude}`
     const waypoints = sortedPending.map(p => `${p.latitude},${p.longitude}`).join('|')
     
-    // S'ha corregit el subdomini erroni a l'URL oficial de Google Maps
     const url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&waypoints=${encodeURIComponent(waypoints)}&travelmode=driving`
     window.open(url, '_blank')
   }
@@ -180,7 +183,7 @@ export default function Dashboard() {
 
       <h1 style={{ marginBottom: 20 }}>🚛 DASHBOARD OPERARIS</h1>
 
-      {/* 🗺️ MAPA (Ara actua netament com a visor, sense pintar botons ni llistes a sota) */}
+      {/* 🗺️ MAPA */}
       <div style={{ borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', marginBottom: 30 }}>
         <MapClient pickups={pickups} />
       </div>
