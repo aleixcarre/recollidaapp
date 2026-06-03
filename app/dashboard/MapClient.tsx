@@ -80,84 +80,21 @@ export default function MapClient({ pickups: initialPickups }: { pickups: any[] 
     getRoute()
   }, [routePoints])
 
-  const markAsDone = async (id: number) => {
-    await supabase.from('pickups').update({ status: 'done' }).eq('id', id)
-    setPickups(pickups.filter(p => p.id !== id))
-  }
-
-  const downloadGPX = () => {
-    if (!route || route.length === 0) return;
-
-    // Capçalera estàndard XML/GPX perquè qualsevol dispositiu o aplicació GPS la reconegui nativament
-    const gpxHeader = '<?xml version="1.0" encoding="UTF-8"?>\n' +
-                      '<gpx version="1.1" creator="AppRutes" ' +
-                      'xmlns="http://www.topografix.com/GPX/1/1" ' +
-                      'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" ' +
-                      'xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">\n' +
-                      '  <rte>\n' +
-                      '    <name>Ruta Optimitzada de Recollida</name>\n';
-
-    // Es generen els punts de la ruta de manera vàlida amb tancament xml explícit
-    const gpxPoints = route.map(c => `    <rtept lat="${c[0]}" lon="${c[1]}"></rtept>`).join('\n');
-    const gpxFooter = '\n  </rte>\n</gpx>';
-
-    // Fem servir el tipus MIME correcte d'un fitxer GPX per a dispositius mòbils/GPS
-    const blob = new Blob([gpxHeader + gpxPoints + gpxFooter], { type: 'application/gpx+xml' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'ruta_diaria.gpx';
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
   if (!Map) return <p style={{ padding: '20px' }}>Carregant mapa...</p>
   const { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } = Map
 
+  // El retorn ara NOMÉS renderitza el mapa net, evitant qualsevol duplicitat a la pantalla
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '10px' }}>
-      
-      {/* 1. SECCIÓ DEL MAPA */}
-      <div style={{ height: '400px', width: '100%' }}>
-        <MapContainer center={[DEPOT.latitude, DEPOT.longitude]} zoom={13} style={{ height: '100%', width: '100%' }}>
-          <FixMap useMap={useMap} />
-          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-          <Marker position={[DEPOT.latitude, DEPOT.longitude]}><Popup><b>🏭 Magatzem Central</b></Popup></Marker>
-          {sorted.map((p) => (
-            <Marker key={p.id} position={[p.latitude, p.longitude]}><Popup><b>{p.client_name}</b></Popup></Marker>
-          ))}
-          {route.length > 1 && <Polyline positions={route} color="#3b82f6" weight={5} />}
-        </MapContainer>
-      </div>
-
-      {/* 2. BOTÓ DE DESCÀRREGA */}
-      <button onClick={downloadGPX} style={{ background: '#333', color: 'white', padding: '12px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
-        💾 Descarregar ruta GPX para GPS
-      </button>
-
-      {/* 3. FEED NET DE RECOLLIDES (Sense duplicats de codi) */}
-      <div style={{ marginTop: '10px' }}>
-        <h3 style={{ borderBottom: '2px solid #f59e0b', paddingBottom: '5px', color: '#333' }}>📍 Recollides Pendents</h3>
-        
-        {sorted.length > 0 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '15px' }}>
-            {sorted.map((p) => (
-              <div key={p.id} style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '15px', border: '1px solid #eee', borderRadius: '8px', backgroundColor: '#fff', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-                <span style={{ fontSize: '16px' }}><b>{p.client_name}</b></span>
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <button onClick={() => markAsDone(p.id)} style={{ background: '#22c55e', color: 'white', padding: '8px 16px', borderRadius: '5px', border: 'none', cursor: 'pointer', fontWeight: '5px' }}>✅ Fet</button>
-                  <a href={`https://www.google.com/maps/search/?api=1&query=${p.latitude},${p.longitude}`} target="_blank" rel="noopener noreferrer" style={{ background: '#4285F4', color: 'white', padding: '8px 16px', borderRadius: '5px', textDecoration: 'none', fontSize: '14px', display: 'inline-flex', alignItems: 'center' }}>📍 Google Maps</a>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div style={{ padding: '20px', textAlign: 'center', background: '#f0fdf4', color: '#166534', borderRadius: '8px', border: '1px solid #bbf7d0', marginTop: '15px' }}>
-            🎉 <b>Feina feta! No queden recollides pendents per avui.</b>
-          </div>
-        )}
-      </div>
-
+    <div style={{ height: '400px', width: '100%' }}>
+      <MapContainer center={[DEPOT.latitude, DEPOT.longitude]} zoom={13} style={{ height: '100%', width: '100%' }}>
+        <FixMap useMap={useMap} />
+        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+        <Marker position={[DEPOT.latitude, DEPOT.longitude]}><Popup><b>🏭 Magatzem Central</b></Popup></Marker>
+        {sorted.map((p) => (
+          <Marker key={p.id} position={[p.latitude, p.longitude]}><Popup><b>{p.client_name}</b></Popup></Marker>
+        ))}
+        {route.length > 1 && <Polyline positions={route} color="#3b82f6" weight={5} />}
+      </MapContainer>
     </div>
   )
 }
