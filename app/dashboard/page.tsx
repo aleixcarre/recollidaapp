@@ -181,11 +181,12 @@ export default function Dashboard() {
   return (
     <div style={{ padding: 30, fontFamily: 'sans-serif', maxWidth: '800px', margin: '0 auto' }}>
 
-      <h1 style={{ marginBottom: 20 }}>🚛 DASHBOARD OPERARIS</h1>
+      <h1>🚛 DASHBOARD OPERARIS</h1>
 
       {/* 🗺️ MAPA */}
       <div style={{ borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', marginBottom: 30 }}>
-        <MapClient pickups={pickups} />
+        {/* 🚀 Connexió realitzada afegint setGlobalPickups perquè la llista s'actualitzi en temps real de forma viva */}
+        <MapClient pickups={pickups} setGlobalPickups={setPickups} />
       </div>
 
       {/* 📥 ACCIONS DE DESCÀRREGA I GPS */}

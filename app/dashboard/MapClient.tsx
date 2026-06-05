@@ -26,22 +26,34 @@ function sortByNearest(points: any[]) {
 
 function FixMap({ useMap }: { useMap: any }) {
   const map = useMap()
-  useEffect(() => { const t = setTimeout(() => { if (map) map.invalidateSize() }, 200); return () => clearTimeout(t) }, [map])
+  useEffect(() => { 
+    // pugem el temps a 500ms perquè a l'app mòbil li doni temps a mesurar la pantalla
+    const t = setTimeout(() => { if (map) map.invalidateSize() }, 500); 
+    return () => clearTimeout(t) 
+  }, [map])
   return null
 }
 
-export default function MapClient({ pickups: initialPickups }: { pickups: any[] }) {
+export default function MapClient({ pickups: initialPickups, setGlobalPickups }: { pickups: any[], setGlobalPickups?: (data: any[]) => void }) {
   const [pickups, setPickups] = useState(initialPickups)
   const [Map, setMap] = useState<any>(null)
   const [route, setRoute] = useState<any[]>([])
 
   useEffect(() => {
+    setPickups(initialPickups)
+  }, [initialPickups])
+
+  useEffect(() => {
     const interval = setInterval(async () => {
       const { data } = await supabase.from('pickups').select('*').order('created_at', { ascending: false })
-      if (data) setPickups(data)
+      if (data) {
+        setPickups(data)
+        // 🚀 CRUCIAL: Avisem al Dashboard gran perquè s'actualitzin els botons i les llistes de sota
+        if (setGlobalPickups) setGlobalPickups(data)
+      }
     }, 5000)
     return () => clearInterval(interval)
-  }, [])
+  }, [setGlobalPickups])
 
   useEffect(() => {
     const loadMap = async () => {
@@ -83,7 +95,6 @@ export default function MapClient({ pickups: initialPickups }: { pickups: any[] 
   if (!Map) return <p style={{ padding: '20px' }}>Carregant mapa...</p>
   const { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } = Map
 
-  // El retorn ara NOMÉS renderitza el mapa net, evitant qualsevol duplicitat a la pantalla
   return (
     <div style={{ height: '400px', width: '100%' }}>
       <MapContainer center={[DEPOT.latitude, DEPOT.longitude]} zoom={13} style={{ height: '100%', width: '100%' }}>
