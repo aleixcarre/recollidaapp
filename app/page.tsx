@@ -12,53 +12,88 @@ export default function Home() {
     const saved = localStorage.getItem('client_name')
     if (saved) setClientName(saved)
 
-    window.addEventListener('beforeinstallprompt', (e) => {
+    const handler = (e: any) => {
       e.preventDefault()
       setDeferredPrompt(e)
-    })
+    }
+
+    window.addEventListener('beforeinstallprompt', handler)
+    return () => window.removeEventListener('beforeinstallprompt', handler)
   }, [])
 
   const handleInstall = () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt()
-    }
+    if (deferredPrompt) deferredPrompt.prompt()
   }
 
   const sendPickup = async () => {
-    if (!clientName) { 
+    if (!clientName) {
       alert('Introdueix el nom de l’empresa')
-      return 
+      return
     }
-    
+
     setLoading(true)
+
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { error } = await supabase.from('pickups').insert([
-          { 
-            client_name: clientName, 
-            status: 'pending', 
-            latitude: position.coords.latitude, 
-            longitude: position.coords.longitude 
+          {
+            client_name: clientName,
+            status: 'pending',
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
           },
         ])
+
         if (error) {
-          alert('Error enviant')
+          alert('Error enviant la comanda')
         } else {
-          alert('Recollida enviada ✔') // Tornem a l'alert simple
+          // 🔔 Cridem a l’API que enviarà la notificació als operaris
+          try {
+            await fetch('/api/send-notification', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ clientName }),
+            })
+          } catch (err) {
+            console.error('Error cridant l’API de notificació:', err)
+          }
+
+          alert('Recollida enviada ✔')
         }
+
         setLoading(false)
       },
-      () => { 
+      () => {
         alert('No s’ha pogut obtenir la ubicació')
-        setLoading(false) 
+        setLoading(false)
       }
     )
   }
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: 15, padding: 20 }}>
+    <div
+      style={{
+        height: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: 15,
+        padding: 20,
+      }}
+    >
       {deferredPrompt && (
-        <button onClick={handleInstall} style={{ padding: '10px 20px', background: '#0070f3', color: 'white', borderRadius: 10, border: 'none', marginBottom: 20 }}>
+        <button
+          onClick={handleInstall}
+          style={{
+            padding: '10px 20px',
+            background: '#0070f3',
+            color: 'white',
+            borderRadius: 10,
+            border: 'none',
+            marginBottom: 20,
+          }}
+        >
           📥 Instal·lar App al mòbil
         </button>
       )}
@@ -67,19 +102,36 @@ export default function Home() {
         type="text"
         placeholder="Nom de l’empresa"
         value={clientName}
-        onChange={(e) => { setClientName(e.target.value); localStorage.setItem('client_name', e.target.value) }}
-        style={{ padding: 15, fontSize: 18, borderRadius: 10, border: '1px solid gray', width: '100%', maxWidth: 260 }}
+        onChange={(e) => {
+          setClientName(e.target.value)
+          localStorage.setItem('client_name', e.target.value)
+        }}
+        style={{
+          padding: 15,
+          fontSize: 18,
+          borderRadius: 10,
+          border: '1px solid gray',
+          width: '100%',
+          maxWidth: 260,
+        }}
       />
 
-      <button onClick={sendPickup} disabled={loading} style={{ padding: 30, fontSize: 24, background: 'green', color: 'white', borderRadius: 20, border: 'none', width: '100%', maxWidth: 260 }}>
+      <button
+        onClick={sendPickup}
+        disabled={loading}
+        style={{
+          padding: 30,
+          fontSize: 24,
+          background: 'green',
+          color: 'white',
+          borderRadius: 20,
+          border: 'none',
+          width: '100%',
+          maxWidth: 260,
+        }}
+      >
         {loading ? 'Enviant...' : 'DEMANAR RECOLLIDA'}
       </button>
-
-      {!deferredPrompt && (
-        <p style={{ fontSize: 12, color: 'gray', marginTop: 20, textAlign: 'center', maxWidth: 300 }}>
-          Per tenir-ho sempre a mà: clica els 3 puntets del navegador i selecciona &quot;Instal·lar aplicació&quot; o &quot;Afegir a la pantalla d&rsquo;inici&quot;.
-        </p>
-      )}
     </div>
   )
 }
